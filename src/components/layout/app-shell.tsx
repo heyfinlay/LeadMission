@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
+  Building2,
   ClipboardList,
   Command,
   Gauge,
+  LogOut,
   PlusCircle,
   Settings,
   Target,
@@ -17,6 +19,7 @@ import { useAppData } from "@/features/app/app-data-context";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Gauge },
+  { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/leads", label: "Leads", icon: Target },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -28,6 +31,8 @@ export const AppShell = ({ children }: PropsWithChildren) => {
   const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const { leads } = useAppData();
+  const isPortalRoute = pathname.startsWith("/portal/");
+  const isLoginRoute = pathname === "/login";
 
   const quickMatches = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -55,13 +60,21 @@ export const AppShell = ({ children }: PropsWithChildren) => {
 
       if (event.key.toLowerCase() === "n" && !isTypingContext) {
         event.preventDefault();
-        router.push("/leads/new");
+        router.push("/companies/new");
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [router]);
+
+  if (isPortalRoute || isLoginRoute) {
+    return (
+      <div className="min-h-screen bg-command-bg text-slate-100">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-command-bg text-slate-100">
@@ -99,7 +112,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
           <div className="mt-8 rounded-lg border border-slate-700/50 bg-slate-900/60 p-3 text-xs text-slate-400">
             <p className="font-semibold text-slate-200">Hotkeys</p>
             <p className="mt-1">`/` focus search</p>
-            <p>`n` new lead</p>
+            <p>`n` new company</p>
           </div>
         </aside>
 
@@ -133,11 +146,18 @@ export const AppShell = ({ children }: PropsWithChildren) => {
 
               <div className="flex items-center gap-2">
                 <Link
-                  href="/leads/new"
+                  href="/companies/new"
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-500/20"
                 >
                   <PlusCircle className="h-4 w-4" />
-                  New Lead
+                  New Company
+                </Link>
+                <Link
+                  href="/logout"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-700/60 px-3 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
                 </Link>
               </div>
             </div>
