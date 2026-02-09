@@ -77,9 +77,24 @@ export const getPortalSettings = async (supabase: Client, companyId: string) => 
 export const getCompanyTasks = async (supabase: Client, companyId: string, limit = 12) => {
   return supabase
     .from("tasks")
-    .select("id,title,status,priority,due_at,notes,created_at")
+    .select("id,company_id,title,status,priority,due_at,notes,created_at")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
     .limit(limit);
 };
 
+export const listTasks = async (supabase: Client, limit = 200) => {
+  return supabase
+    .from("tasks")
+    .select("id,company_id,title,status,priority,due_at,notes,created_at")
+    .order("due_at", { ascending: true, nullsFirst: false })
+    .limit(limit);
+};
+
+export const getTaskById = async (supabase: Client, taskId: string) => {
+  return supabase
+    .from("tasks")
+    .select("id,company_id,title,status,priority,due_at,notes,created_at")
+    .eq("id", taskId)
+    .single();
+};

@@ -86,3 +86,10 @@ export const taskCreateSchema = z.object({
   honeypot: honeypotSchema,
 });
 
+export const taskUpdateSchema = z.object({
+  status: z.string().trim().max(64).optional(),
+  dueAt: z.string().datetime().optional().or(z.literal("")),
+  priority: z.string().trim().max(64).optional(),
+  notes: z.string().trim().max(4000).optional().or(z.literal("")),
+  honeypot: honeypotSchema,
+});

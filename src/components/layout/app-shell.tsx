@@ -11,39 +11,72 @@ import {
   LogOut,
   PlusCircle,
   Settings,
-  Target,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Input } from "@/components/ui/input";
-import { useAppData } from "@/features/app/app-data-context";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Gauge },
   { href: "/companies", label: "Companies", icon: Building2 },
-  { href: "/leads", label: "Leads", icon: Target },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+interface CompanySearchItem {
+  id: string;
+  business_name: string;
+}
 
 export const AppShell = ({ children }: PropsWithChildren) => {
   const pathname = usePathname();
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
-  const { leads } = useAppData();
+  const [companies, setCompanies] = useState<CompanySearchItem[]>([]);
   const isPortalRoute = pathname.startsWith("/portal/");
   const isLoginRoute = pathname === "/login";
 
-  const quickMatches = useMemo(() => {
+  useEffect(() => {
     const value = search.trim().toLowerCase();
     if (!value) {
-      return [];
+      setCompanies([]);
+      return;
     }
 
-    return leads
-      .filter((lead) => lead.companyName.toLowerCase().includes(value))
-      .slice(0, 5);
-  }, [leads, search]);
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/companies", {
+          method: "GET",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          setCompanies([]);
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          data?: Array<{ id: string; business_name: string }>;
+        };
+
+        const rows = (payload.data || [])
+          .filter((company) => company.business_name.toLowerCase().includes(value))
+          .slice(0, 5);
+
+        setCompanies(rows);
+      } catch {
+        setCompanies([]);
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [search]);
+
+  const quickMatches = useMemo(() => companies, [companies]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -124,7 +157,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
                   ref={searchRef}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search leads..."
+                  placeholder="Search companies..."
                 />
                 {quickMatches.length > 0 ? (
                   <div className="absolute mt-2 w-full rounded-lg border border-slate-700/70 bg-[#111924] p-2 shadow-2xl">
@@ -134,10 +167,10 @@ export const AppShell = ({ children }: PropsWithChildren) => {
                         className="block w-full rounded px-2 py-1 text-left text-sm text-slate-200 hover:bg-slate-800/80"
                         onClick={() => {
                           setSearch("");
-                          router.push(`/leads/${match.id}`);
+                          router.push(`/companies/${match.id}`);
                         }}
                       >
-                        {match.companyName}
+                        {match.business_name}
                       </button>
                     ))}
                   </div>
