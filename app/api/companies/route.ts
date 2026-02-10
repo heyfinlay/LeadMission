@@ -1,12 +1,21 @@
+import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { parseJsonBody } from "@/lib/api/validation";
 import { enforceRateLimit } from "@/lib/api/security";
+import { hasSessionCookie, logAuthDebug } from "@/lib/supabase/debug";
 import { requireApiUser } from "@/lib/supabase/auth";
 import { companyCreateSchema } from "@/lib/validation/schemas";
 import { listCompanies } from "@/lib/companies/queries";
 
 export async function GET() {
+  const cookieStore = await cookies();
   const auth = await requireApiUser();
+  logAuthDebug("api:companies:get", {
+    route: "/api/companies",
+    hasSessionCookie: hasSessionCookie(cookieStore.getAll()),
+    hasUser: !(auth instanceof Response),
+  });
+
   if (auth instanceof Response) {
     return auth;
   }
@@ -48,7 +57,14 @@ export async function POST(request: NextRequest) {
     return limitResponse;
   }
 
+  const cookieStore = await cookies();
   const auth = await requireApiUser();
+  logAuthDebug("api:companies:post", {
+    route: "/api/companies",
+    hasSessionCookie: hasSessionCookie(cookieStore.getAll()),
+    hasUser: !(auth instanceof Response),
+  });
+
   if (auth instanceof Response) {
     return auth;
   }

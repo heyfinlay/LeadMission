@@ -28,6 +28,7 @@ export default function NewCompanyPage() {
     const response = await fetch("/api/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         businessName,
         websiteUrl,
@@ -39,14 +40,23 @@ export default function NewCompanyPage() {
       }),
     });
 
-    const payload = (await response.json()) as { data?: { id: string }; error?: string };
-    if (!response.ok || !payload.data?.id) {
-      setError(payload.error || "Could not create company.");
+    const payload = (await response.json().catch(() => null)) as
+      | { data?: { id: string }; error?: string }
+      | null;
+
+    const createdId = payload?.data?.id;
+
+    if (!response.ok || !createdId) {
+      if (response.status === 401) {
+        setError("You appear to be logged out. Please sign in again.");
+      } else {
+        setError(payload?.error || `Create failed (${response.status}).`);
+      }
       setSaving(false);
       return;
     }
 
-    router.push(`/companies/${payload.data.id}`);
+    router.push(`/companies/${createdId}`);
     router.refresh();
   };
 
@@ -121,4 +131,3 @@ export default function NewCompanyPage() {
     </Panel>
   );
 }
-

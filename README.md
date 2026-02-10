@@ -109,6 +109,17 @@ supabase db push
 
 After migration push completes, trigger a Vercel redeploy for `lead-mission.vercel.app`.
 
+## Troubleshooting Auth Cookies
+
+- Verify `NEXT_PUBLIC_SITE_URL` exactly matches the current origin (`http://localhost:3000` locally, `https://lead-mission.vercel.app` in production).
+- In Supabase Auth URL configuration, keep both callback URLs:
+  - `http://localhost:3000/auth/callback`
+  - `https://lead-mission.vercel.app/auth/callback`
+- If session drops on route changes, enable temporary debug logs locally:
+  - `DEBUG_AUTH=1 pnpm dev`
+  - Check logs for route path, `hasSessionCookie`, and `hasUser` booleans.
+- If login succeeds but API returns 401, sign out and log in again to refresh auth cookies.
+
 ## Data persistence notes
 
 - Persistence is local-first via IndexedDB (Dexie) in `src/data/local`.

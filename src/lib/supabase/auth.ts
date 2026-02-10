@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/lib/env";
-import { createServerSupabaseClient } from "@/lib/supabase/server-client";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
 export interface ApiAuthContext {
@@ -84,7 +84,7 @@ export const requireApiUser = async (): Promise<ApiAuthContext | Response> => {
   const { data, error } = await supabase.auth.getUser();
 
   if (error || !data.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const allowlisted = await ensureAllowlisted(supabase, data.user);
