@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { UnderlitButton } from "@/components/primitives/underlit-button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const sanitizeNext = (value: string | null): string => {
   if (!value) {
@@ -24,21 +23,15 @@ export const DiscordLoginButton = () => {
     setIsPending(true);
     setError(null);
 
-    const supabase = createSupabaseBrowserClient();
-    const searchParams = new URLSearchParams(window.location.search);
-    const next = sanitizeNext(searchParams.get("redirect") ?? searchParams.get("next"));
-    const redirectUrl = new URL("/auth/callback", window.location.origin);
-    redirectUrl.searchParams.set("next", next);
-
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: "discord",
-      options: {
-        redirectTo: redirectUrl.toString(),
-      },
-    });
-
-    if (signInError) {
-      setError(signInError.message);
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const next = sanitizeNext(searchParams.get("redirect") ?? searchParams.get("next"));
+      const loginUrl = new URL("/auth/login", window.location.origin);
+      loginUrl.searchParams.set("provider", "discord");
+      loginUrl.searchParams.set("next", next);
+      window.location.assign(loginUrl.toString());
+    } catch {
+      setError("Unable to start Discord login. Please try again.");
       setIsPending(false);
     }
   };
