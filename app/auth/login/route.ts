@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
   }
 
   const callbackUrl = buildCallbackUrl(request, next);
-  const supabaseResponse = NextResponse.next();
-  const supabase = createSupabaseRouteClient(request, supabaseResponse);
+
+  const supabase = await createServerAuthClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "discord",
     options: {
