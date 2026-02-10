@@ -41,6 +41,28 @@ OPENAI_MODEL=gpt-4.1-mini
 ADMIN_EMAIL=
 ```
 
+## OAuth Configuration Checklist
+
+Supabase (Auth -> URL Configuration):
+
+- Site URL: `https://lead-mission.vercel.app`
+- Additional Redirect URLs:
+  - `http://localhost:3000/auth/callback`
+  - `https://lead-mission.vercel.app/auth/callback`
+
+Discord Developer Portal (OAuth2 Redirects):
+
+- `http://localhost:3000/auth/callback`
+- `https://lead-mission.vercel.app/auth/callback`
+
+Vercel environment variables:
+
+- `NEXT_PUBLIC_SITE_URL=https://lead-mission.vercel.app`
+- `NEXT_PUBLIC_SUPABASE_URL=...`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
+- `SUPABASE_URL=...`
+- `SUPABASE_SERVICE_ROLE_KEY=...`
+
 ## Environment
 
 Use these keys in `.env.local`:
@@ -71,10 +93,10 @@ ADMIN_EMAIL=
 ## Auth Smoke Test
 
 1. Visit `/login` and click `Continue with Discord`.
-2. Complete Discord OAuth.
-3. Confirm redirect to `/dashboard`.
-4. Refresh `/dashboard` and verify the session persists.
-5. Sign out and confirm protected routes (`/dashboard`, `/leads`, `/tasks`, `/companies/*`) redirect to `/login`.
+2. Complete Discord OAuth and confirm the flow lands on `/auth/callback`, then redirects to `/dashboard`.
+3. Refresh `/dashboard` and verify the session persists.
+4. Sign out and confirm protected routes (`/dashboard`, `/leads`, `/tasks`, `/companies/*`) redirect to `/login`.
+5. Repeat the same flow on `https://lead-mission.vercel.app`.
 
 ## Data persistence notes
 

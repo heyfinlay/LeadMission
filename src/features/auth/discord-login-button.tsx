@@ -1,32 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { UnderlitButton } from "@/components/primitives/underlit-button";
-import { getPublicEnv } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-interface DiscordLoginButtonProps {
-  next: string;
-}
-
-const sanitizeNext = (value: string): string => {
-  if (!value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
-  }
-
-  return value;
+const resolveSiteUrl = (): string => {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+  return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
 };
 
-export const DiscordLoginButton = ({ next }: DiscordLoginButtonProps) => {
+export const DiscordLoginButton = () => {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const redirectTo = useMemo(() => {
-    const env = getPublicEnv();
-    const callback = new URL("/auth/callback", env.NEXT_PUBLIC_SITE_URL);
-    callback.searchParams.set("next", sanitizeNext(next));
-    return callback.toString();
-  }, [next]);
 
   const onContinueWithDiscord = async () => {
     setIsPending(true);
@@ -36,7 +21,7 @@ export const DiscordLoginButton = ({ next }: DiscordLoginButtonProps) => {
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
-        redirectTo,
+        redirectTo: `${resolveSiteUrl()}/auth/callback`,
       },
     });
 

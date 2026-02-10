@@ -15,14 +15,12 @@ const readParam = (value: string | string[] | undefined): string | undefined => 
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const rawNext = readParam(params.next);
-  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const error = readParam(params.error);
 
   return (
     <div className="mx-auto max-w-xl py-12">
       <Panel title="Login" subtitle="Sign in with Discord">
-        <DiscordLoginButton next={next} />
+        <DiscordLoginButton />
 
         {error ? (
           <p className="mt-3 text-sm text-red-300">{error}</p>

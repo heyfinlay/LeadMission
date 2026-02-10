@@ -23,6 +23,14 @@ const sanitizeNext = (value: string | null): string | null => {
 export const updateSession = async (request: NextRequest) => {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { pathname } = request.nextUrl;
+
+  // Defensive fallback: if OAuth returns to root, forward into the callback handler.
+  if (pathname === "/" && (request.nextUrl.searchParams.has("code") || request.nextUrl.searchParams.has("token_hash"))) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/auth/callback";
+    return NextResponse.redirect(redirectUrl);
+  }
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next({ request });
@@ -47,7 +55,6 @@ export const updateSession = async (request: NextRequest) => {
 
   const { data } = await supabase.auth.getClaims();
   const isAuthenticated = Boolean(data?.claims?.sub);
-  const { pathname } = request.nextUrl;
   const isProtected = isProtectedRoute(pathname);
 
   if (!isAuthenticated && isProtected) {
