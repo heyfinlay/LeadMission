@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerAuthClient } from "@/lib/supabase/auth";
+import { copySupabaseCookies, createSupabaseRouteClient } from "@/lib/supabase/ssr";
 
 const sanitizeNext = (value: string | null): string => {
   if (!value) {
@@ -19,6 +19,22 @@ const buildLoginErrorRedirect = (request: NextRequest, message: string): NextRes
   return NextResponse.redirect(redirectUrl);
 };
 
+const buildCallbackUrl = (request: NextRequest, next: string): URL => {
+  const { origin } = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const inDev = process.env.NODE_ENV === "development";
+
+  if (!inDev && forwardedHost) {
+    const callbackUrl = new URL(`https://${forwardedHost}/auth/callback`);
+    callbackUrl.searchParams.set("next", next);
+    return callbackUrl;
+  }
+
+  const callbackUrl = new URL(`${origin}/auth/callback`);
+  callbackUrl.searchParams.set("next", next);
+  return callbackUrl;
+};
+
 export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get("provider")?.toLowerCase();
   const next = sanitizeNext(request.nextUrl.searchParams.get("next"));
@@ -27,10 +43,9 @@ export async function GET(request: NextRequest) {
     return buildLoginErrorRedirect(request, "Only Discord login is currently enabled.");
   }
 
-  const callbackUrl = new URL("/auth/callback", request.nextUrl.origin);
-  callbackUrl.searchParams.set("next", next);
-
-  const supabase = await createServerAuthClient();
+  const callbackUrl = buildCallbackUrl(request, next);
+  const supabaseResponse = NextResponse.next();
+  const supabase = createSupabaseRouteClient(request, supabaseResponse);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "discord",
     options: {
@@ -51,8 +66,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (error || !data?.url) {
-    return buildLoginErrorRedirect(request, error?.message ?? "Unable to start Discord login.");
+    const errorRedirect = buildLoginErrorRedirect(request, error?.message ?? "Unable to start Discord login.");
+    return copySupabaseCookies(supabaseResponse, errorRedirect);
   }
 
-  return NextResponse.redirect(data.url);
+  const providerRedirect = NextResponse.redirect(data.url);
+  return copySupabaseCookies(supabaseResponse, providerRedirect);
 }
