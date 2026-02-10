@@ -116,10 +116,12 @@ Profile onboarding note:
 
 ## Troubleshooting Auth Cookies
 
-- Verify `NEXT_PUBLIC_SITE_URL` exactly matches the current origin (`http://localhost:3000` locally, `https://lead-mission.vercel.app` in production).
+- When testing locally, do not set `NEXT_PUBLIC_SITE_URL` to production; OAuth `redirectTo` uses `window.location.origin`.
+- If `NEXT_PUBLIC_SITE_URL` is set in development, ensure it matches the current origin exactly.
 - In Supabase Auth URL configuration, keep both callback URLs:
   - `http://localhost:3000/auth/callback`
   - `https://lead-mission.vercel.app/auth/callback`
+- After login, inspect the `/auth/callback` network response and confirm `Set-Cookie` headers are present.
 - If session drops on route changes, enable temporary debug logs locally:
   - `DEBUG_AUTH=1 pnpm dev`
   - Check logs for route path, `hasSessionCookie`, and `hasUser` booleans.
