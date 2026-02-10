@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasSessionCookie, logAuthDebug } from "@/lib/supabase/debug";
+import { copySupabaseCookies, createSupabaseRouteClient } from "@/lib/supabase/ssr";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,7 +10,8 @@ const cacheHeaders = {
 };
 
 export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
+  const sessionResponse = NextResponse.next({ request });
+  const supabase = createSupabaseRouteClient(request, sessionResponse);
   const { data, error } = await supabase.auth.getUser();
   const user = error ? null : data.user ?? null;
   const cookiePresent = hasSessionCookie(request.cookies.getAll());
@@ -28,23 +29,30 @@ export async function GET(request: NextRequest) {
   });
 
   if (!user) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         authenticated: false,
+        user: null,
+        provider: null,
       },
       { headers: cacheHeaders },
     );
+    return copySupabaseCookies(sessionResponse, response);
   }
 
   const firstIdentity = user.identities?.[0];
   const provider = user.app_metadata?.provider || firstIdentity?.provider || null;
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       authenticated: true,
-      userId: user.id,
+      user: {
+        id: user.id,
+        email: user.email ?? null,
+      },
       provider,
     },
     { headers: cacheHeaders },
   );
+  return copySupabaseCookies(sessionResponse, response);
 }

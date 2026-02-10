@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 
 interface MePayload {
   authenticated: boolean;
-  userId?: string | null;
-  email?: string | null;
+  user?: {
+    id?: string | null;
+    email?: string | null;
+  } | null;
   provider?: string | null;
   providerUsername?: string | null;
   discordUsername?: string | null;
@@ -23,8 +25,8 @@ const readDisplayName = (payload: MePayload | null): string => {
     payload.providerUsername ||
     payload.discordUsername ||
     payload.fullName ||
-    payload.email ||
-    payload.userId ||
+    payload.user?.email ||
+    payload.user?.id ||
     "Authenticated user"
   );
 };

@@ -1,9 +1,7 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { ensureProfile } from "@/lib/profile/ensureProfile";
 import { hasSessionCookie, logAuthDebug } from "@/lib/supabase/debug";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createSupabaseRouteClient } from "@/lib/supabase/ssr";
 
 const normalizeEmail = (value: string | null | undefined): string | null => {
   if (!value) {
@@ -14,47 +12,48 @@ const normalizeEmail = (value: string | null | undefined): string | null => {
   return normalized || null;
 };
 
-const redirectWithOauthError = (request: NextRequest) => {
+const createOauthErrorResponse = (request: NextRequest) => {
   const errorUrl = new URL("/login", request.url);
   errorUrl.searchParams.set("error", "oauth");
   return NextResponse.redirect(errorUrl);
 };
 
-const readAdminEmail = (): string | null => {
-  const value = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  return value || null;
+const countSetCookies = (response: NextResponse): number => {
+  const setCookieHeaders = response.headers.getSetCookie?.();
+  if (setCookieHeaders && setCookieHeaders.length > 0) {
+    return setCookieHeaders.length;
+  }
+
+  return response.headers.get("set-cookie") ? 1 : 0;
 };
 
-const countSetCookieHeaders = (response: NextResponse): number => {
-  const setCookieHeaders = response.headers.getSetCookie?.() ?? [];
-  return setCookieHeaders.length;
-};
-
-const countSbCookiesFromStore = async (): Promise<number> => {
-  const cookieStore = await cookies();
-  return cookieStore.getAll().filter((cookie) => cookie.name.startsWith("sb-")).length;
-};
-
-const logCallbackOutcome = async (payload: {
-  method: "code" | "otp" | "none";
+const logCallbackDebug = (payload: {
+  method: "code" | "none";
+  host: string;
+  hasCode: boolean;
   exchangeSucceeded: boolean;
-  hasSessionCookie: boolean;
+  hasSbCookie: boolean;
   hasUser: boolean;
-  setCookieCount: number;
-  requestHost: string;
   redirectHost: string;
+  response: NextResponse;
 }) => {
-  const setCookieCount = payload.setCookieCount || (await countSbCookiesFromStore());
-
   if (process.env.NODE_ENV !== "production") {
-    console.info(
-      `[auth-debug:callback] method=${payload.method} exchangeSucceeded=${String(payload.exchangeSucceeded)} hasSbCookie=${String(payload.hasSessionCookie)} hasUser=${String(payload.hasUser)} setCookieCount=${setCookieCount} requestHost=${payload.requestHost} redirectHost=${payload.redirectHost}`,
-    );
+    console.log("[auth-debug:callback]", {
+      method: payload.method,
+      host: payload.host,
+      hasCode: payload.hasCode,
+      exchangeSucceeded: payload.exchangeSucceeded,
+      hasSbCookie: payload.hasSbCookie,
+      hasUser: payload.hasUser,
+      redirectHost: payload.redirectHost,
+      setCookieCount: countSetCookies(payload.response),
+      hasSetCookieHeader: payload.response.headers.get("set-cookie") != null,
+    });
   }
 
   logAuthDebug("callback", {
     route: "/auth/callback",
-    hasSessionCookie: payload.hasSessionCookie,
+    hasSessionCookie: payload.hasSbCookie,
     hasUser: payload.hasUser,
   });
 };
@@ -62,97 +61,97 @@ const logCallbackOutcome = async (payload: {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type") as EmailOtpType | null;
-  const requestHost = url.host;
-  const successRedirect = new URL("/dashboard", request.url);
-  const redirectHost = successRedirect.host;
-  const adminEmail = readAdminEmail();
+  const redirectTo = new URL("/dashboard", request.url);
+  const response = NextResponse.redirect(redirectTo);
 
-  const supabase = await createServerSupabaseClient();
+  if (!code) {
+    const errorResponse = createOauthErrorResponse(request);
+    logCallbackDebug({
+      method: "none",
+      host: url.host,
+      hasCode: false,
+      exchangeSucceeded: false,
+      hasSbCookie: hasSessionCookie(request.cookies.getAll()),
+      hasUser: false,
+      redirectHost: new URL(errorResponse.headers.get("location") ?? request.url, request.url).host,
+      response: errorResponse,
+    });
+    return errorResponse;
+  }
 
-  const finalize = async (method: "code" | "otp") => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      const errorResponse = redirectWithOauthError(request);
-      await logCallbackOutcome({
-        method,
-        exchangeSucceeded: true,
-        hasSessionCookie: hasSessionCookie(request.cookies.getAll()),
-        hasUser: false,
-        setCookieCount: countSetCookieHeaders(errorResponse),
-        requestHost,
-        redirectHost: errorResponse.headers.get("location")
-          ? new URL(errorResponse.headers.get("location")!, request.url).host
-          : requestHost,
-      });
-      return errorResponse;
-    }
+  const supabase = createSupabaseRouteClient(request, response);
+  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const exchangeOk = !exchangeError;
 
-    if (adminEmail && normalizeEmail(data.user.email) !== adminEmail) {
-      const errorResponse = redirectWithOauthError(request);
-      await logCallbackOutcome({
-        method,
-        exchangeSucceeded: true,
-        hasSessionCookie: hasSessionCookie(request.cookies.getAll()),
-        hasUser: false,
-        setCookieCount: countSetCookieHeaders(errorResponse),
-        requestHost,
-        redirectHost: errorResponse.headers.get("location")
-          ? new URL(errorResponse.headers.get("location")!, request.url).host
-          : requestHost,
-      });
-      return errorResponse;
-    }
+  if (!exchangeOk) {
+    const errorResponse = createOauthErrorResponse(request);
+    logCallbackDebug({
+      method: "code",
+      host: url.host,
+      hasCode: true,
+      exchangeSucceeded: false,
+      hasSbCookie: hasSessionCookie(request.cookies.getAll()),
+      hasUser: false,
+      redirectHost: new URL(errorResponse.headers.get("location") ?? request.url, request.url).host,
+      response: errorResponse,
+    });
+    return errorResponse;
+  }
 
-    try {
-      await ensureProfile(supabase, data.user);
-    } catch {
-      // Profile provisioning should not block login.
-    }
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-    const response = NextResponse.redirect(successRedirect);
-    await logCallbackOutcome({
-      method,
+  if (userError || !user) {
+    const errorResponse = createOauthErrorResponse(request);
+    logCallbackDebug({
+      method: "code",
+      host: url.host,
+      hasCode: true,
       exchangeSucceeded: true,
-      hasSessionCookie: hasSessionCookie(request.cookies.getAll()),
-      hasUser: true,
-      setCookieCount: countSetCookieHeaders(response),
-      requestHost,
-      redirectHost,
+      hasSbCookie: hasSessionCookie(request.cookies.getAll()),
+      hasUser: false,
+      redirectHost: new URL(errorResponse.headers.get("location") ?? request.url, request.url).host,
+      response: errorResponse,
     });
-
-    return response;
-  };
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return finalize("code");
-    }
+    return errorResponse;
   }
 
-  if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type,
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? null);
+  if (adminEmail && normalizeEmail(user.email) !== adminEmail) {
+    const deniedResponse = createOauthErrorResponse(request);
+    const deniedClient = createSupabaseRouteClient(request, deniedResponse);
+    await deniedClient.auth.signOut();
+    logCallbackDebug({
+      method: "code",
+      host: url.host,
+      hasCode: true,
+      exchangeSucceeded: true,
+      hasSbCookie: hasSessionCookie(request.cookies.getAll()),
+      hasUser: false,
+      redirectHost: new URL(deniedResponse.headers.get("location") ?? request.url, request.url).host,
+      response: deniedResponse,
     });
-    if (!error) {
-      return finalize("otp");
-    }
+    return deniedResponse;
   }
 
-  const response = redirectWithOauthError(request);
-  await logCallbackOutcome({
-    method: code ? "code" : tokenHash && type ? "otp" : "none",
-    exchangeSucceeded: false,
-    hasSessionCookie: hasSessionCookie(request.cookies.getAll()),
-    hasUser: false,
-    setCookieCount: countSetCookieHeaders(response),
-    requestHost,
-    redirectHost: response.headers.get("location")
-      ? new URL(response.headers.get("location")!, request.url).host
-      : requestHost,
+  try {
+    await ensureProfile(supabase, user);
+  } catch {
+    // Profile provisioning is best-effort and should not block auth completion.
+  }
+
+  logCallbackDebug({
+    method: "code",
+    host: url.host,
+    hasCode: true,
+    exchangeSucceeded: true,
+    hasSbCookie: hasSessionCookie(request.cookies.getAll()),
+    hasUser: true,
+    redirectHost: redirectTo.host,
+    response,
   });
+
   return response;
 }

@@ -122,6 +122,7 @@ Profile onboarding note:
   - `http://localhost:3000/auth/callback`
   - `https://lead-mission.vercel.app/auth/callback`
 - After login, inspect the `/auth/callback` network response and confirm `Set-Cookie` headers are present.
+- If `/auth/callback` has no `Set-Cookie`, the callback route is not returning the same response instance that received Supabase cookie writes.
 - If session drops on route changes, enable temporary debug logs locally:
   - `DEBUG_AUTH=1 pnpm dev`
   - Check logs for route path, `hasSessionCookie`, and `hasUser` booleans.
