@@ -89,7 +89,7 @@ export const updateSession = async (request: NextRequest) => {
 
   if (process.env.NODE_ENV !== "production") {
     console.info(
-      `[auth-debug:middleware] pathname=${pathname} hasSbCookies=${String(hasCookie)} hasUser=${String(hasUser)}`,
+      `[auth-debug:middleware] pathname=${pathname} hasSbCookie=${String(hasCookie)} hasUser=${String(hasUser)}`,
     );
   }
 

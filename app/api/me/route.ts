@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   if (process.env.NODE_ENV !== "production") {
     console.info(
-      `[auth-debug:api-me] pathname=/api/me hasSbCookies=${String(cookiePresent)} hasUser=${String(Boolean(user))}`,
+      `[auth-debug:api-me] pathname=/api/me hasSbCookie=${String(cookiePresent)} hasUser=${String(Boolean(user))}`,
     );
   }
 
