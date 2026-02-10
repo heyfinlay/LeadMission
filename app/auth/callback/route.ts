@@ -1,17 +1,33 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { getServerEnv } from "@/lib/env";
 import { createServerAuthClient } from "@/lib/supabase/auth";
 
 const sanitizeNext = (value: string | null): string => {
   if (!value) {
-    return "/companies";
+    return "/dashboard";
   }
 
   if (!value.startsWith("/") || value.startsWith("//")) {
-    return "/companies";
+    return "/dashboard";
   }
 
   return value;
+};
+
+const normalizeEmail = (value: string | null | undefined): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || null;
+};
+
+const redirectWithError = (request: NextRequest, message: string) => {
+  const errorUrl = new URL("/login", request.url);
+  errorUrl.searchParams.set("error", message);
+  return NextResponse.redirect(errorUrl);
 };
 
 export async function GET(request: NextRequest) {
@@ -22,11 +38,25 @@ export async function GET(request: NextRequest) {
   const next = sanitizeNext(url.searchParams.get("next"));
 
   const supabase = await createServerAuthClient();
+  const finalize = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      return redirectWithError(request, "Could not complete login.");
+    }
+
+    const adminEmail = normalizeEmail(getServerEnv().ADMIN_EMAIL);
+    if (adminEmail && normalizeEmail(data.user.email) !== adminEmail) {
+      await supabase.auth.signOut();
+      return redirectWithError(request, "Access not enabled.");
+    }
+
+    return NextResponse.redirect(new URL(next, request.url));
+  };
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(new URL(next, request.url));
+      return finalize();
     }
   }
 
@@ -36,12 +66,9 @@ export async function GET(request: NextRequest) {
       type,
     });
     if (!error) {
-      return NextResponse.redirect(new URL(next, request.url));
+      return finalize();
     }
   }
 
-  const errorUrl = new URL("/login", request.url);
-  errorUrl.searchParams.set("error", "Could not complete login.");
-  return NextResponse.redirect(errorUrl);
+  return redirectWithError(request, "Could not complete login.");
 }
-

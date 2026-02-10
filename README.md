@@ -3,8 +3,8 @@
 ## Run locally
 
 ```bash
-npm install --cache /tmp/npm-cache
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Then open `http://localhost:3000`.
@@ -12,9 +12,45 @@ Then open `http://localhost:3000`.
 Optional checks:
 
 ```bash
-npm run lint
-npm run test
+pnpm lint
+pnpm typecheck
+pnpm build
 ```
+
+## Environment
+
+Use these keys in `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Optional:
+
+```bash
+ADMIN_EMAIL=
+```
+
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` are accepted as legacy fallbacks on the server, but the canonical keys are the `NEXT_PUBLIC_*` values above.
+
+## Security Notes
+
+- `.env.local` is gitignored. Do not commit secrets.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-only. Never expose it in client-side code or bundles.
+- If `SUPABASE_SERVICE_ROLE_KEY` or `OPENAI_API_KEY` is exposed, rotate it immediately in the provider dashboard.
+
+## Auth Smoke Test
+
+1. Visit `/login` and click `Continue with Discord`.
+2. Complete Discord OAuth.
+3. Confirm redirect to `/dashboard`.
+4. Refresh `/dashboard` and verify the session persists.
+5. Sign out and confirm protected routes (`/dashboard`, `/leads`, `/tasks`, `/companies/*`) redirect to `/login`.
 
 ## Data persistence notes
 

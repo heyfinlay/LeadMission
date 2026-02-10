@@ -10,11 +10,11 @@ const loginSchema = z.object({
 
 const sanitizeNext = (value?: string): string => {
   if (!value) {
-    return "/companies";
+    return "/dashboard";
   }
 
   if (!value.startsWith("/") || value.startsWith("//")) {
-    return "/companies";
+    return "/dashboard";
   }
 
   return value;
@@ -60,4 +60,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.redirect(redirectUrl);
 }
-

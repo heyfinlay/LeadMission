@@ -16,7 +16,7 @@ import { cn } from "@/lib/cn";
 import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: Gauge },
+  { href: "/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -34,7 +34,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
   const [search, setSearch] = useState("");
   const [companies, setCompanies] = useState<CompanySearchItem[]>([]);
   const isPortalRoute = pathname.startsWith("/portal/");
-  const isLoginRoute = pathname === "/login";
+  const isShelllessRoute = pathname === "/" || pathname === "/login" || isPortalRoute;
 
   useEffect(() => {
     const value = search.trim().toLowerCase();
@@ -101,7 +101,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [router]);
 
-  if (isPortalRoute || isLoginRoute) {
+  if (isShelllessRoute) {
     return (
       <div className="min-h-screen bg-command-bg text-slate-100">
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
@@ -123,7 +123,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
 
           <nav className="space-y-2">
             {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}

@@ -12,6 +12,38 @@ export interface ApiAuthContext {
   user: User;
 }
 
+const normalizeEmail = (value: string | undefined | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || null;
+};
+
+const isAllowlisted = (user: User): boolean => {
+  const env = getServerEnv();
+  const adminEmail = normalizeEmail(env.ADMIN_EMAIL);
+
+  if (!adminEmail) {
+    return true;
+  }
+
+  return normalizeEmail(user.email) === adminEmail;
+};
+
+const ensureAllowlisted = async (
+  supabase: SupabaseClient<Database>,
+  user: User,
+): Promise<boolean> => {
+  if (isAllowlisted(user)) {
+    return true;
+  }
+
+  await supabase.auth.signOut();
+  return false;
+};
+
 export const createServerAuthClient = async (): Promise<SupabaseClient<Database>> => {
   const cookieStore = await cookies();
   const env = getServerEnv();
@@ -36,17 +68,34 @@ export const createServerAuthClient = async (): Promise<SupabaseClient<Database>
 
 export const getUser = async (): Promise<User | null> => {
   const supabase = await createServerAuthClient();
-  const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    return null;
+  }
+
+  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  if (!allowlisted) {
+    return null;
+  }
+
+  return data.user;
 };
 
 export const requireUser = async (): Promise<User> => {
-  const user = await getUser();
-  if (!user) {
+  const supabase = await createServerAuthClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
     redirect("/login");
   }
 
-  return user;
+  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  if (!allowlisted) {
+    redirect("/login?error=Access%20not%20enabled.");
+  }
+
+  return data.user;
 };
 
 export const requireApiUser = async (): Promise<ApiAuthContext | Response> => {
@@ -57,9 +106,13 @@ export const requireApiUser = async (): Promise<ApiAuthContext | Response> => {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  if (!allowlisted) {
+    return Response.json({ error: "Access not enabled." }, { status: 403 });
+  }
+
   return {
     supabase,
     user: data.user,
   };
 };
-

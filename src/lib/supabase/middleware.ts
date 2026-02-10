@@ -2,17 +2,27 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/supabase";
 
-const isPublicRoute = (pathname: string): boolean => {
-  if (pathname === "/login") {
-    return true;
+const PROTECTED_PREFIXES = ["/dashboard", "/companies", "/leads", "/tasks", "/settings", "/portal"] as const;
+
+const isProtectedRoute = (pathname: string): boolean => {
+  return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+};
+
+const sanitizeNext = (value: string | null): string | null => {
+  if (!value) {
+    return null;
   }
 
-  return pathname.startsWith("/auth");
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
 };
 
 export const updateSession = async (request: NextRequest) => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next({ request });
@@ -38,21 +48,22 @@ export const updateSession = async (request: NextRequest) => {
   const { data } = await supabase.auth.getClaims();
   const isAuthenticated = Boolean(data?.claims?.sub);
   const { pathname } = request.nextUrl;
+  const isProtected = isProtectedRoute(pathname);
 
-  if (!isAuthenticated && !isPublicRoute(pathname)) {
+  if (!isAuthenticated && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", pathname);
+    redirectUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(redirectUrl);
   }
 
   if (isAuthenticated && pathname === "/login") {
+    const requestedNext = sanitizeNext(request.nextUrl.searchParams.get("next"));
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/companies";
+    redirectUrl.pathname = requestedNext || "/dashboard";
     redirectUrl.searchParams.delete("next");
     return NextResponse.redirect(redirectUrl);
   }
 
   return supabaseResponse;
 };
-
