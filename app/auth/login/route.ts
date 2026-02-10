@@ -19,6 +19,22 @@ const buildLoginErrorRedirect = (request: NextRequest, message: string): NextRes
   return NextResponse.redirect(redirectUrl);
 };
 
+const buildCallbackUrl = (request: NextRequest, next: string): URL => {
+  const { origin } = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const inDev = process.env.NODE_ENV === "development";
+
+  if (!inDev && forwardedHost) {
+    const callbackUrl = new URL(`https://${forwardedHost}/auth/callback`);
+    callbackUrl.searchParams.set("next", next);
+    return callbackUrl;
+  }
+
+  const callbackUrl = new URL(`${origin}/auth/callback`);
+  callbackUrl.searchParams.set("next", next);
+  return callbackUrl;
+};
+
 export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get("provider")?.toLowerCase();
   const next = sanitizeNext(request.nextUrl.searchParams.get("next"));
@@ -27,8 +43,7 @@ export async function GET(request: NextRequest) {
     return buildLoginErrorRedirect(request, "Only Discord login is currently enabled.");
   }
 
-  const callbackUrl = new URL("/auth/callback", request.nextUrl.origin);
-  callbackUrl.searchParams.set("next", next);
+  const callbackUrl = buildCallbackUrl(request, next);
 
   const supabase = await createServerAuthClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
