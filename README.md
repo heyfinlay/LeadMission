@@ -42,19 +42,69 @@ OPENAI_MODEL=gpt-4.1-mini
 ADMIN_EMAIL=
 ```
 
-## OAuth Configuration Checklist
+## Discord OAuth Setup (Supabase + Next.js)
 
-Supabase (Auth -> URL Configuration):
+### 1) Required environment variables
 
-- Site URL: `https://lead-mission.vercel.app`
+Set these locally in `.env.local` and in your deployment environment:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=
+```
+
+`NEXT_PUBLIC_SITE_URL` should match the active host exactly:
+
+- local development: `http://localhost:3000`
+- production: `https://lead-mission.vercel.app`
+
+### 2) Supabase dashboard settings
+
+In `Authentication -> Providers -> Discord`:
+
+- Enable Discord provider.
+- Copy the Supabase redirect URL shown there (it looks like `https://<project-ref>.supabase.co/auth/v1/callback`).
+
+In `Authentication -> URL Configuration`:
+
+- Site URL: your production app URL (`https://lead-mission.vercel.app`).
 - Additional Redirect URLs:
   - `http://localhost:3000/auth/callback`
   - `https://lead-mission.vercel.app/auth/callback`
 
-Discord Developer Portal (OAuth2 Redirects):
+### 3) Discord Developer Portal settings
 
-- `http://localhost:3000/auth/callback`
-- `https://lead-mission.vercel.app/auth/callback`
+In your Discord app (`OAuth2 -> Redirects`), add the Supabase callback URL exactly as shown in Supabase provider settings:
+
+- `https://<project-ref>.supabase.co/auth/v1/callback`
+
+> Important: Discord should redirect back to Supabase's callback URL, not directly to your Next.js `/auth/callback` route.
+
+### 4) In-app flow used by this repo
+
+1. `/login` button sends the browser to `/auth/login?provider=discord&next=...`.
+2. `/auth/login` starts `signInWithOAuth` server-side and redirects to Discord.
+3. Discord returns to Supabase callback.
+4. Supabase returns to app `/auth/callback?code=...`.
+5. `/auth/callback` exchanges code for session, sets auth cookies, and redirects to `next` (defaults to `/dashboard`).
+
+### 5) If login fails, where to look
+
+- UI now surfaces the concrete OAuth error message on `/login?error=...`.
+- In development, inspect logs for:
+  - `[auth-debug:login]`
+  - `[auth-debug:callback]`
+  - `[auth-debug:middleware]`
+
+### 6) Quick verification
+
+1. Visit `/login` and click **Continue with Discord**.
+2. Complete OAuth and confirm final redirect lands on `/dashboard`.
+3. Refresh `/dashboard` and confirm you remain authenticated.
+4. Hit `/api/me` and confirm `authenticated: true`.
 
 Vercel environment variables:
 
@@ -86,8 +136,7 @@ Supabase Dashboard:
 
 Discord Developer Portal:
 
-- OAuth2 Redirects should include the Supabase callback URL from Provider settings (`...supabase.co/auth/v1/callback`), for example:
-  - `https://discord.com/oauth2/authorize?client_id=1470634183486607441&response_type=code&redirect_uri=https%3A%2F%2Fyxaaxzxiowftzyswhyqe.supabase.co%2Fauth%2Fv1%2Fcallback&scope=identify+connections`
+- OAuth2 Redirects include your Supabase callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`).
 
 ## Environment
 

@@ -45,8 +45,15 @@ const buildSuccessRedirect = (request: NextRequest, next: string): URL => {
 };
 
 const oauthErrorRedirect = (request: NextRequest): NextResponse => {
-  const { origin } = new URL(request.url);
-  return NextResponse.redirect(`${origin}/login?error=oauth`);
+  const { origin, searchParams } = new URL(request.url);
+  const reason =
+    searchParams.get("error_description") ??
+    searchParams.get("error") ??
+    searchParams.get("error_code") ??
+    "OAuth callback failed.";
+  const redirectUrl = new URL(`${origin}/login`);
+  redirectUrl.searchParams.set("error", reason);
+  return NextResponse.redirect(redirectUrl);
 };
 
 export async function GET(request: NextRequest) {
@@ -75,12 +82,15 @@ export async function GET(request: NextRequest) {
   const exchangeSucceeded = !exchangeError;
 
   if (!exchangeSucceeded) {
-    const errorResponse = oauthErrorRedirect(request);
+    const errorResponse = NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(exchangeError.message)}`, request.url),
+    );
     if (process.env.NODE_ENV !== "production") {
       console.log("[auth-debug:callback]", {
         host: requestUrl.host,
         hasCode: true,
         exchangeSucceeded: false,
+        exchangeError: exchangeError.message,
         setCookieCount: getSetCookieCount(errorResponse),
       });
     }
