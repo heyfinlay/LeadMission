@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerAuthClient } from "@/lib/supabase/auth";
+import { copySupabaseCookies, createSupabaseRouteClient } from "@/lib/supabase/ssr";
 
 const sanitizeNext = (value: string | null): string => {
   if (!value) {
@@ -66,8 +66,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (error || !data?.url) {
-    return buildLoginErrorRedirect(request, error?.message ?? "Unable to start Discord login.");
+    const errorRedirect = buildLoginErrorRedirect(request, error?.message ?? "Unable to start Discord login.");
+    return copySupabaseCookies(supabaseResponse, errorRedirect);
   }
 
-  return NextResponse.redirect(data.url);
+  const providerRedirect = NextResponse.redirect(data.url);
+  return copySupabaseCookies(supabaseResponse, providerRedirect);
 }
