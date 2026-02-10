@@ -13,7 +13,6 @@ interface RateLimitResult {
 type BucketMap = Map<string, number[]>;
 
 declare global {
-  // eslint-disable-next-line no-var
   var __missionControlRateLimitBuckets: BucketMap | undefined;
 }
 
@@ -52,4 +51,3 @@ export const rateLimit = ({ key, windowMs, limit }: RateLimitOptions): RateLimit
     resetAt: now + windowMs,
   };
 };
-

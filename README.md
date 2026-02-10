@@ -17,6 +17,30 @@ pnpm typecheck
 pnpm build
 ```
 
+## Deploy to Vercel
+
+- Framework Preset: `Next.js`
+- Root Directory: `.`
+- Install Command: `pnpm install --frozen-lockfile`
+- Build Command: `pnpm build`
+
+Required environment variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=
+```
+
+Optional environment variables:
+
+```bash
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+ADMIN_EMAIL=
+```
+
 ## Environment
 
 Use these keys in `.env.local`:
