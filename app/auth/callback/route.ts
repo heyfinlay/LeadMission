@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getServerEnv } from "@/lib/env";
 import { ensureProfile } from "@/lib/profile/ensureProfile";
 import { hasSessionCookie, logAuthDebug } from "@/lib/supabase/debug";
-import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const normalizeEmail = (value: string | null | undefined): string | null => {
   if (!value) {
@@ -27,18 +27,17 @@ export async function GET(request: NextRequest) {
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
 
-  const { supabase, applyCookies } = createRouteHandlerSupabaseClient(request);
+  const supabase = await createServerSupabaseClient();
 
   const finalize = async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
-      return applyCookies(redirectWithOauthError(request));
+      return redirectWithOauthError(request);
     }
 
     const adminEmail = normalizeEmail(env.ADMIN_EMAIL);
     if (adminEmail && normalizeEmail(data.user.email) !== adminEmail) {
-      await supabase.auth.signOut();
-      return applyCookies(redirectWithOauthError(request));
+      return redirectWithOauthError(request);
     }
 
     try {
@@ -53,7 +52,7 @@ export async function GET(request: NextRequest) {
       hasUser: true,
     });
 
-    return applyCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   };
 
   if (code) {
@@ -73,5 +72,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return applyCookies(redirectWithOauthError(request));
+  return redirectWithOauthError(request);
 }

@@ -33,11 +33,18 @@ const isPrefetchRequest = (request: NextRequest): boolean => {
   return request.headers.get("purpose") === "prefetch" || request.headers.has("next-router-prefetch");
 };
 
-interface CookieToSet {
-  name: string;
-  value: string;
-  options?: Parameters<NextResponse["cookies"]["set"]>[2];
-}
+const applySupabaseCookies = (source: NextResponse, target: NextResponse): NextResponse => {
+  const setCookieHeaders = source.headers.getSetCookie?.() ?? [];
+  if (setCookieHeaders.length > 0) {
+    setCookieHeaders.forEach((cookie) => target.headers.append("set-cookie", cookie));
+    return target;
+  }
+
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie);
+  });
+  return target;
+};
 
 export const updateSession = async (request: NextRequest) => {
   const { pathname } = request.nextUrl;
@@ -52,28 +59,14 @@ export const updateSession = async (request: NextRequest) => {
     return NextResponse.redirect(redirectUrl);
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next({ request });
   }
 
-  let supabaseResponse = NextResponse.next({ request });
-  const applyCookies = (target: NextResponse) => {
-    const setCookieHeaders = supabaseResponse.headers.getSetCookie?.() || [];
-    if (setCookieHeaders.length > 0) {
-      setCookieHeaders.forEach((cookie) => {
-        target.headers.append("set-cookie", cookie);
-      });
-      return target;
-    }
-
-    supabaseResponse.cookies.getAll().forEach((cookie: CookieToSet) => {
-      target.cookies.set(cookie.name, cookie.value, cookie.options);
-    });
-    return target;
-  };
+  let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -82,9 +75,9 @@ export const updateSession = async (request: NextRequest) => {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
+        response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
+          response.cookies.set(name, value, options);
         });
       },
     },
@@ -93,6 +86,12 @@ export const updateSession = async (request: NextRequest) => {
   const { data, error } = await supabase.auth.getUser();
   const hasUser = Boolean(data?.user && !error);
   const hasCookie = hasSessionCookie(request.cookies.getAll());
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info(
+      `[auth-debug:middleware] pathname=${pathname} hasSbCookies=${String(hasCookie)} hasUser=${String(hasUser)}`,
+    );
+  }
 
   logAuthDebug("middleware", {
     route: pathname,
@@ -103,34 +102,20 @@ export const updateSession = async (request: NextRequest) => {
   });
 
   if (isPrefetch) {
-    return applyCookies(supabaseResponse);
+    return response;
   }
 
   if (isApiRoute) {
-    return applyCookies(supabaseResponse);
+    return response;
   }
 
   if (!hasUser && isProtected) {
-    logAuthDebug("middleware:redirect-login", {
-      route: pathname,
-      hasSessionCookie: hasCookie,
-      hasUser,
-      isProtected,
-      isPrefetch,
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info(
-        `[auth-debug:redirect] pathname=${pathname} hasSessionCookie=${String(hasCookie)} hasUser=${String(hasUser)}`,
-      );
-    }
-
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     const redirectPath = `${pathname}${request.nextUrl.search}`;
     redirectUrl.searchParams.set("redirect", redirectPath);
     redirectUrl.searchParams.set("next", redirectPath);
-    return applyCookies(NextResponse.redirect(redirectUrl));
+    return applySupabaseCookies(response, NextResponse.redirect(redirectUrl));
   }
 
   if (hasUser && (pathname === "/login" || pathname === "/")) {
@@ -141,8 +126,8 @@ export const updateSession = async (request: NextRequest) => {
     redirectUrl.pathname = requestedNext || "/dashboard";
     redirectUrl.searchParams.delete("next");
     redirectUrl.searchParams.delete("redirect");
-    return applyCookies(NextResponse.redirect(redirectUrl));
+    return applySupabaseCookies(response, NextResponse.redirect(redirectUrl));
   }
 
-  return applyCookies(supabaseResponse);
+  return response;
 };

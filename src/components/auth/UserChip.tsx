@@ -25,7 +25,7 @@ const readDisplayName = (payload: MePayload | null): string => {
     payload.fullName ||
     payload.email ||
     payload.userId ||
-    "Unknown user"
+    "Authenticated user"
   );
 };
 

@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
-  const { supabase, applyCookies } = createRouteHandlerSupabaseClient(request);
+  const supabase = await createServerSupabaseClient();
 
   await supabase.auth.signOut();
 
   const redirectUrl = new URL("/login", request.url);
-  return applyCookies(NextResponse.redirect(redirectUrl));
+  return NextResponse.redirect(redirectUrl);
 }

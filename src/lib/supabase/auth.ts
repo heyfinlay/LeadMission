@@ -31,16 +31,8 @@ const isAllowlisted = (user: User): boolean => {
   return normalizeEmail(user.email) === adminEmail;
 };
 
-const ensureAllowlisted = async (
-  supabase: SupabaseClient<Database>,
-  user: User,
-): Promise<boolean> => {
-  if (isAllowlisted(user)) {
-    return true;
-  }
-
-  await supabase.auth.signOut();
-  return false;
+const ensureAllowlisted = (user: User): boolean => {
+  return isAllowlisted(user);
 };
 
 export const createServerAuthClient = async (): Promise<SupabaseClient<Database>> => {
@@ -55,7 +47,7 @@ export const getUser = async (): Promise<User | null> => {
     return null;
   }
 
-  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  const allowlisted = ensureAllowlisted(data.user);
   if (!allowlisted) {
     return null;
   }
@@ -71,7 +63,7 @@ export const requireUser = async (): Promise<User> => {
     redirect("/login");
   }
 
-  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  const allowlisted = ensureAllowlisted(data.user);
   if (!allowlisted) {
     redirect("/login?error=Access%20not%20enabled.");
   }
@@ -87,7 +79,7 @@ export const requireApiUser = async (): Promise<ApiAuthContext | Response> => {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const allowlisted = await ensureAllowlisted(supabase, data.user);
+  const allowlisted = ensureAllowlisted(data.user);
   if (!allowlisted) {
     return Response.json({ error: "Access not enabled." }, { status: 403 });
   }
