@@ -8,9 +8,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
@@ -30,12 +37,16 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^15.5.12",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
     "eslint": "^9.27.0",
     "eslint-config-next": "^15.3.3",
+    "globals": "^15.15.0",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3",
     "vitest": "^2.1.8"

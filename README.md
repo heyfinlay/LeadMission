@@ -29,6 +29,7 @@ Required environment variables:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=
 ```
@@ -70,6 +71,7 @@ Use these keys in `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=
@@ -94,9 +96,18 @@ ADMIN_EMAIL=
 
 1. Visit `/login` and click `Continue with Discord`.
 2. Complete Discord OAuth and confirm the flow lands on `/auth/callback`, then redirects to `/dashboard`.
-3. Refresh `/dashboard` and verify the session persists.
-4. Sign out and confirm protected routes (`/dashboard`, `/leads`, `/tasks`, `/companies/*`) redirect to `/login`.
-5. Repeat the same flow on `https://lead-mission.vercel.app`.
+3. Navigate across protected pages (`/dashboard`, `/companies`, `/tasks`) and confirm the session remains active.
+4. Refresh `/dashboard` and verify the session persists.
+5. Sign out and confirm protected routes (`/dashboard`, `/leads`, `/tasks`, `/companies/*`) redirect to `/login`.
+6. Repeat the same flow on `https://lead-mission.vercel.app`.
+
+## Migration + Deploy Steps
+
+```bash
+supabase db push
+```
+
+After migration push completes, trigger a Vercel redeploy for `lead-mission.vercel.app`.
 
 ## Data persistence notes
 

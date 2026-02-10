@@ -1,10 +1,9 @@
 import "server-only";
 
-import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/lib/env";
+import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 import type { Database } from "@/types/supabase";
 
 export interface ApiAuthContext {
@@ -45,25 +44,7 @@ const ensureAllowlisted = async (
 };
 
 export const createServerAuthClient = async (): Promise<SupabaseClient<Database>> => {
-  const cookieStore = await cookies();
-  const env = getServerEnv();
-
-  return createServerClient<Database>(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // Cookies can't always be set from Server Components.
-        }
-      },
-    },
-  });
+  return createServerSupabaseClient();
 };
 
 export const getUser = async (): Promise<User | null> => {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UnderlitButton } from "@/components/primitives/underlit-button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 
 const resolveSiteUrl = (): string => {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
