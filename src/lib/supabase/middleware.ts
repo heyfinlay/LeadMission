@@ -97,6 +97,14 @@ export const updateSession = async (request: NextRequest) => {
   }
 
   if (!hasUser && isProtected) {
+    logAuthDebug("middleware:redirect-login", {
+      route: pathname,
+      hasSessionCookie: hasCookie,
+      hasUser,
+      isProtected,
+      isPrefetch,
+    });
+
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     const redirectPath = `${pathname}${request.nextUrl.search}`;

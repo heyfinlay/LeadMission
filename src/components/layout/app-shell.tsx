@@ -13,6 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { UserChip } from "@/components/auth/UserChip";
 import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
@@ -178,6 +179,7 @@ export const AppShell = ({ children }: PropsWithChildren) => {
               </div>
 
               <div className="flex items-center gap-2">
+                <UserChip />
                 <Link
                   href="/companies/new"
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-500/20"
