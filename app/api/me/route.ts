@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 import { hasSessionCookie, logAuthDebug } from "@/lib/supabase/debug";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ const cacheHeaders = {
 };
 
 export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
+  const { supabase, applyCookies } = createRouteHandlerSupabaseClient(request);
   const { data, error } = await supabase.auth.getUser();
   const user = error ? null : data.user ?? null;
   const cookiePresent = hasSessionCookie(request.cookies.getAll());
@@ -80,11 +80,13 @@ export async function GET(request: NextRequest) {
   });
 
   if (!user) {
-    return NextResponse.json(
-      {
-        authenticated: false,
-      },
-      { headers: cacheHeaders },
+    return applyCookies(
+      NextResponse.json(
+        {
+          authenticated: false,
+        },
+        { headers: cacheHeaders },
+      ),
     );
   }
 
@@ -96,16 +98,25 @@ export async function GET(request: NextRequest) {
     identityData,
   );
   const avatarUrl = toDiscordAvatarUrl(identityData);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name,provider_username,avatar_url,provider")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  return NextResponse.json(
-    {
+  return applyCookies(
+    NextResponse.json(
+      {
       authenticated: true,
       userId: user.id,
       email: user.email ?? null,
-      provider,
-      discordUsername,
-      avatarUrl,
-    },
-    { headers: cacheHeaders },
+      provider: profile?.provider || provider,
+      providerUsername: profile?.provider_username || discordUsername,
+      discordUsername: profile?.provider_username || discordUsername,
+      fullName: profile?.full_name || null,
+      avatarUrl: profile?.avatar_url || avatarUrl,
+      },
+      { headers: cacheHeaders },
+    ),
   );
 }

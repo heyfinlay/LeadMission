@@ -8,7 +8,9 @@ interface MePayload {
   userId?: string | null;
   email?: string | null;
   provider?: string | null;
+  providerUsername?: string | null;
   discordUsername?: string | null;
+  fullName?: string | null;
   avatarUrl?: string | null;
 }
 
@@ -17,7 +19,14 @@ const readDisplayName = (payload: MePayload | null): string => {
     return "Not signed in";
   }
 
-  return payload.discordUsername || payload.email || payload.userId || "Unknown user";
+  return (
+    payload.providerUsername ||
+    payload.discordUsername ||
+    payload.fullName ||
+    payload.email ||
+    payload.userId ||
+    "Unknown user"
+  );
 };
 
 const readProviderLabel = (provider: string | null | undefined): string => {

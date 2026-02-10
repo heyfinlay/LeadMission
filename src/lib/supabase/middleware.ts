@@ -41,6 +41,7 @@ interface CookieToSet {
 
 export const updateSession = async (request: NextRequest) => {
   const { pathname } = request.nextUrl;
+  const isApiRoute = pathname.startsWith("/api");
   const isProtected = isProtectedRoute(pathname);
   const isPrefetch = isPrefetchRequest(request);
 
@@ -58,12 +59,20 @@ export const updateSession = async (request: NextRequest) => {
     return NextResponse.next({ request });
   }
 
-  const pendingCookies = new Map<string, CookieToSet>();
-  const applyCookies = (response: NextResponse) => {
-    pendingCookies.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
+  let supabaseResponse = NextResponse.next({ request });
+  const applyCookies = (target: NextResponse) => {
+    const setCookieHeaders = supabaseResponse.headers.getSetCookie?.() || [];
+    if (setCookieHeaders.length > 0) {
+      setCookieHeaders.forEach((cookie) => {
+        target.headers.append("set-cookie", cookie);
+      });
+      return target;
+    }
+
+    supabaseResponse.cookies.getAll().forEach((cookie: CookieToSet) => {
+      target.cookies.set(cookie.name, cookie.value, cookie.options);
     });
-    return response;
+    return target;
   };
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -72,9 +81,10 @@ export const updateSession = async (request: NextRequest) => {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value);
-          pendingCookies.set(name, { name, value, options });
+          supabaseResponse.cookies.set(name, value, options);
         });
       },
     },
@@ -93,7 +103,11 @@ export const updateSession = async (request: NextRequest) => {
   });
 
   if (isPrefetch) {
-    return applyCookies(NextResponse.next({ request }));
+    return applyCookies(supabaseResponse);
+  }
+
+  if (isApiRoute) {
+    return applyCookies(supabaseResponse);
   }
 
   if (!hasUser && isProtected) {
@@ -105,6 +119,12 @@ export const updateSession = async (request: NextRequest) => {
       isPrefetch,
     });
 
+    if (process.env.NODE_ENV !== "production") {
+      console.info(
+        `[auth-debug:redirect] pathname=${pathname} hasSessionCookie=${String(hasCookie)} hasUser=${String(hasUser)}`,
+      );
+    }
+
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     const redirectPath = `${pathname}${request.nextUrl.search}`;
@@ -113,7 +133,7 @@ export const updateSession = async (request: NextRequest) => {
     return applyCookies(NextResponse.redirect(redirectUrl));
   }
 
-  if (hasUser && pathname === "/login") {
+  if (hasUser && (pathname === "/login" || pathname === "/")) {
     const requestedNext =
       sanitizeNext(request.nextUrl.searchParams.get("redirect")) ??
       sanitizeNext(request.nextUrl.searchParams.get("next"));
@@ -124,5 +144,5 @@ export const updateSession = async (request: NextRequest) => {
     return applyCookies(NextResponse.redirect(redirectUrl));
   }
 
-  return applyCookies(NextResponse.next({ request }));
+  return applyCookies(supabaseResponse);
 };

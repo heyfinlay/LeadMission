@@ -144,6 +144,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      profiles: {
+        Row: {
+          avatar_url: string | null;
+          created_at: string;
+          email: string | null;
+          full_name: string | null;
+          provider: string | null;
+          provider_username: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          avatar_url?: string | null;
+          created_at?: string;
+          email?: string | null;
+          full_name?: string | null;
+          provider?: string | null;
+          provider_username?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          avatar_url?: string | null;
+          created_at?: string;
+          email?: string | null;
+          full_name?: string | null;
+          provider?: string | null;
+          provider_username?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       proposals: {
         Row: {
           company_id: string;
@@ -258,4 +291,3 @@ export interface Database {
     CompositeTypes: Record<string, never>;
   };
 }
-

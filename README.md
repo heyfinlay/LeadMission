@@ -109,6 +109,11 @@ supabase db push
 
 After migration push completes, trigger a Vercel redeploy for `lead-mission.vercel.app`.
 
+Profile onboarding note:
+
+- On first successful OAuth callback, the app auto-upserts `public.profiles` for the authenticated user.
+- Profile fields are sourced from Supabase `user_metadata` and OAuth identity data.
+
 ## Troubleshooting Auth Cookies
 
 - Verify `NEXT_PUBLIC_SITE_URL` exactly matches the current origin (`http://localhost:3000` locally, `https://lead-mission.vercel.app` in production).
