@@ -64,6 +64,31 @@ Vercel environment variables:
 - `SUPABASE_URL=...`
 - `SUPABASE_SERVICE_ROLE_KEY=...`
 
+## Known-Good Auth Setup
+
+Required env vars (local + prod):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only; not required for OAuth callback exchange)
+
+Optional server fallbacks:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Supabase Dashboard:
+
+- Auth -> URL Configuration:
+  - Redirect allowlist includes:
+    - `http://localhost:3000/auth/callback`
+    - `https://lead-mission.vercel.app/auth/callback`
+
+Discord Developer Portal:
+
+- OAuth2 Redirects should include the Supabase callback URL from Provider settings (`...supabase.co/auth/v1/callback`), for example:
+  - `https://discord.com/oauth2/authorize?client_id=1470634183486607441&response_type=code&redirect_uri=https%3A%2F%2Fyxaaxzxiowftzyswhyqe.supabase.co%2Fauth%2Fv1%2Fcallback&scope=identify+connections`
+
 ## Environment
 
 Use these keys in `.env.local`:

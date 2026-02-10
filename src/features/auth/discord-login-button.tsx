@@ -4,33 +4,16 @@ import { useState } from "react";
 import { UnderlitButton } from "@/components/primitives/underlit-button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-const trimTrailingSlash = (value: string): string => {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-};
-
-const resolveOauthOrigin = (): string => {
-  const currentOrigin = trimTrailingSlash(window.location.origin);
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-
-  if (!configuredSiteUrl) {
-    return currentOrigin;
+const sanitizeNext = (value: string | null): string => {
+  if (!value) {
+    return "/dashboard";
   }
 
-  let configuredOrigin = configuredSiteUrl;
-  try {
-    configuredOrigin = trimTrailingSlash(new URL(configuredSiteUrl).origin);
-  } catch {
-    configuredOrigin = trimTrailingSlash(configuredSiteUrl);
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
   }
 
-  if (process.env.NODE_ENV !== "production" && configuredOrigin !== currentOrigin) {
-    console.warn(
-      `[auth-debug:oauth-origin] NEXT_PUBLIC_SITE_URL (${configuredOrigin}) does not match window.location.origin (${currentOrigin}); using current origin for redirectTo.`,
-    );
-    return currentOrigin;
-  }
-
-  return configuredOrigin;
+  return value;
 };
 
 export const DiscordLoginButton = () => {
@@ -42,11 +25,15 @@ export const DiscordLoginButton = () => {
     setError(null);
 
     const supabase = createSupabaseBrowserClient();
-    const redirectTo = `${resolveOauthOrigin()}/auth/callback`;
+    const searchParams = new URLSearchParams(window.location.search);
+    const next = sanitizeNext(searchParams.get("redirect") ?? searchParams.get("next"));
+    const redirectUrl = new URL("/auth/callback", window.location.origin);
+    redirectUrl.searchParams.set("next", next);
+
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
-        redirectTo,
+        redirectTo: redirectUrl.toString(),
       },
     });
 
