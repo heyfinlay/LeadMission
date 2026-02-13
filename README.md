@@ -93,11 +93,16 @@ In your Discord app (`OAuth2 -> Redirects`), add the Supabase callback URL exact
 
 ### 5) If login fails, where to look
 
-- UI now surfaces the concrete OAuth error message on `/login?error=...`.
-- In development, inspect logs for:
-  - `[auth-debug:login]`
-  - `[auth-debug:callback]`
-  - `[auth-debug:middleware]`
+- UI now surfaces a readable error plus metadata on `/login`:
+  - `error` (human-readable)
+  - `error_code` / `error_status` when available
+  - `request_id` for log correlation
+- Inspect server logs for structured `[auth]` events:
+  - `oauth_sign_in_start`
+  - `oauth_sign_in_result`
+  - `oauth_callback_entry`
+  - `oauth_code_exchange_result`
+  - `oauth_callback_redirect_success`
 
 ### 6) Quick verification
 
@@ -201,6 +206,14 @@ Profile onboarding note:
   - `DEBUG_AUTH=1 pnpm dev`
   - Check logs for route path, `hasSessionCookie`, and `hasUser` booleans.
 - If login succeeds but API returns 401, sign out and log in again to refresh auth cookies.
+- If you see `code challenge does not match previously saved code verifier`:
+  - start login from `/login` on the same host+port used for callback
+  - avoid multiple parallel login tabs/windows
+  - retry once (callback now clears stale Supabase auth/verifier cookies on this failure path)
+- If Discord OAuth sends you to Vercel (or any non-local host) instead of your app callback:
+  - your Supabase redirect allowlist is missing the current callback URL
+  - add `http://localhost:3000/auth/callback` to Supabase Additional Redirect URLs
+  - make sure Discord redirects to Supabase callback only (`https://<project-ref>.supabase.co/auth/v1/callback`)
 
 ## Data persistence notes
 
